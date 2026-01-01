@@ -35,7 +35,7 @@ st.markdown("""
     }
     </style>
     <div style='text-align: center; color: gray; font-size: 12px;'>
-        Free AI Music Recognition Tool • Identify Songs by Voice • Hum to Search • Hindi & English Support
+        Free AI Music Recognition Tool • Identify Songs by Voice • Hum to Search • Global Language Support
     </div>
     """, unsafe_allow_html=True)
 
