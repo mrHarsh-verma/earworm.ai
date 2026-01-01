@@ -12,10 +12,31 @@ import noisereduce as nr
 from st_audiorec import st_audiorec
 
 # --- PAGE SETUP ---
-st.set_page_config(page_title="Earworm AI", page_icon="🎵")
+# --- PAGE SETUP ---
+st.set_page_config(
+    page_title="Earworm AI | Find Song by Humming Online",
+    page_icon="🎵",
+    layout="centered",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://www.earworm-ai.com',
+        'Report a bug': "https://www.earworm-ai.com",
+        'About': "Earworm AI identifies songs by humming. Powered by ACRCloud."
+    }
+)
 
 st.title("🎵 Earworm AI")
 st.subheader("Can't remember the lyrics? Just hum the tune!")
+st.markdown("""
+    <style>
+    .reportview-container {
+        background: #0e1117;
+    }
+    </style>
+    <div style='text-align: center; color: gray; font-size: 12px;'>
+        Free AI Music Recognition Tool • Identify Songs by Voice • Hum to Search • Hindi & English Support
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- 1. INITIALIZE SESSION STATE ---
 if 'hum_count' not in st.session_state:
