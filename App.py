@@ -12,7 +12,6 @@ import noisereduce as nr
 from st_audiorec import st_audiorec
 
 # --- PAGE SETUP ---
-# --- PAGE SETUP ---
 st.set_page_config(
     page_title="Earworm AI | Find Song by Humming Online",
     page_icon="🎵",
@@ -27,6 +26,8 @@ st.set_page_config(
 
 st.title("🎵 Earworm AI")
 st.subheader("Can't remember the lyrics? Just hum the tune!")
+
+# SEO Verification
 st.markdown("""
     <style>
     .reportview-container {
@@ -53,25 +54,24 @@ with st.sidebar:
     else:
         st.error("🚫 Free limit reached.")
 
-    # KEYS (Keep your keys safe!)
+    # KEYS
     HOST = "identify-ap-southeast-1.acrcloud.com"
     ACCESS_KEY = "b556853ba8fdf4b285dc0432ee903bf9"
     ACCESS_SECRET = "pVSWuLTcGsF2x26HzBOahM0aUjHOxIONeVXI8Wa7"
 
-# --- NEW FUNCTION: NOISE CANCELLATION 🔇 ---
+# --- FUNCTION: ROBUST NOISE CANCELLATION 🔇 ---
 def remove_noise(input_filename):
-    # 1. Load the recorded file
-    rate, data = wavfile.read(input_filename)
-    
-    # 2. Perform Noise Reduction (The "Nitrogen")
-    # We assume the noise is stationary (like a fan or AC)
-    reduced_noise = nr.reduce_noise(y=data, sr=rate, stationary=True, prop_decrease=0.8)
-    
-    # 3. Save the clean file
-    clean_filename = "clean_recording.wav"
-    wavfile.write(clean_filename, rate, reduced_noise)
-    
-    return clean_filename
+    try:
+        rate, data = wavfile.read(input_filename)
+        # We use a smaller FFT window (512) to handle shorter clips without crashing
+        reduced_noise = nr.reduce_noise(y=data, sr=rate, stationary=True, prop_decrease=0.8, n_fft=512)
+        clean_filename = "clean_recording.wav"
+        wavfile.write(clean_filename, rate, reduced_noise)
+        return clean_filename
+    except Exception as e:
+        # If it fails, just return the original file silently
+        print(f"Noise reduction skipped: {e}")
+        return input_filename
 
 # --- API FUNCTION ---
 def identify_hum(filename):
@@ -111,13 +111,9 @@ if st.session_state['hum_count'] < 3:
             with open("temp_raw.wav", "wb") as f:
                 f.write(wav_audio_data)
             
-            # Step 2: Clean the Noise (The Magic Step)
+            # Step 2: Clean the Noise (Silently)
             with st.spinner("🔇 Removing Background Noise..."):
-                try:
-                    clean_file = remove_noise("temp_raw.wav")
-                except Exception as e:
-                    st.warning(f"Noise cancellation failed, using raw audio. (Error: {e})")
-                    clean_file = "temp_raw.wav"
+                clean_file = remove_noise("temp_raw.wav")
 
             # Step 3: Send to AI
             with st.spinner("🎵 Asking the AI..."):
@@ -133,7 +129,18 @@ if st.session_state['hum_count'] < 3:
                     song = None
                     
                 if song:
+                    # --- SMART SCORE FIX ---
                     score = song['score']
+                    if score < 1: 
+                        score = int(score * 100) # Convert 0.93 to 93
+                    else:
+                        score = int(score)
+                    
+                    # Prepare Links
+                    query = f"{song['title']} {song['artists'][0]['name']}"
+                    youtube_link = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+                    spotify_link = f"https://open.spotify.com/search/{query.replace(' ', '%20')}"
+
                     if score >= 40:
                         st.balloons()
                         st.success("🎉 WE FOUND IT!")
@@ -148,13 +155,17 @@ if st.session_state['hum_count'] < 3:
                         with c2:
                             st.metric("Confidence", f"{score}%")
                         
-                        query = f"{song['title']} {song['artists'][0]['name']}"
                         st.markdown("---")
-                        st.markdown(f"👉 **[Listen on YouTube](https://www.youtube.com/results?search_query={query.replace(' ', '+')})**")
-                        st.markdown(f"👉 **[Listen on Spotify](https://open.spotify.com/search/{query.replace(' ', '%20')})**")
+                        st.markdown(f"👉 **[Listen on YouTube]({youtube_link})**")
+                        st.markdown(f"👉 **[Listen on Spotify]({spotify_link})**")
+                    
                     else:
-                        st.warning(f"🤔 I heard a melody, but I'm not sure. (Confidence: {score}%)")
-                        st.write("It sounded a little like **" + song['title'] + "**, but that might be wrong.")
+                        # LOW CONFIDENCE - BUT STILL SHOW LINKS!
+                        st.warning(f"🤔 Low Confidence ({score}%). Is this it?")
+                        st.write(f"I think it's **{song['title']}** by **{song['artists'][0]['name']}**.")
+                        
+                        st.markdown(f"👉 **[Check on YouTube]({youtube_link})**")
+                        st.info("💡 Tip: Try humming the CHORUS louder!")
                 else:
                     st.warning("I heard you, but couldn't match the song.")
             else:
